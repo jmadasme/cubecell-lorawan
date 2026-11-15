@@ -41,6 +41,60 @@ arduino-cli compile --fqbn heltec:heltec:... .
 
 Las credenciales OTAA/ABP no se incluyen. El FQBN depende de la placa Heltec instalada; el README de cada versión lo indica.
 
+<!-- ficha -->
+## Ficha de evaluación
+
+**Madurez global: 4.2/5**
+
+| Criterio | Nota | Evidencia |
+|---|---:|---|
+| Madurez | 4/5 | v1.3 validada en hardware: join, uplink, downlink y payload de 51 B; sin tests automatizados ni persistencia de sesión. |
+| Reproducibilidad | 3/5 | Requiere gateway Milesight UG56, core Heltec 1.4.0, RadioLib 7.7.1 y credenciales OTAA que no se publican. |
+| Documentación | 5/5 | README de más de 600 líneas, datasheet, developer, BITACORA y referencias; cubre pines, aire y errores. |
+| Honestidad de límites | 5/5 | Declara que no es productivo, el truncado silencioso, el aire del heartbeat y la ausencia de NVM. |
+| Valor demostrativo | 5/5 | Muestra un puente serie-LoRaWAN completo sobre cuatro placas y nueve versiones con decisiones trazables. |
+| Facilidad de despliegue | 3/5 | Exige gateway, toolchain CubeCell y edición de claves; el procedimiento está documentado pero no automatizado. |
+
+Prototipo funcional y muy bien documentado para integrar un puente serie-LoRaWAN en campo; no debe tratarse como producto hasta resolver persistencia de sesión, buffer y gestión de credenciales.
+
+## Lo que no funcionó
+
+### CubeCell-LoRaWAN-Node-v1.1 — Join intermitente con el stack Heltec
+
+La primera versión usaba LoRaWan_APP.h y CubeCellLib.a. El JoinRequest llegaba al gateway, pero el nodo no veía el JoinAccept: los timers del core sobre ASR6502 estaban escalados y las ventanas RX no coincidían. Se descartaron credenciales, sub-banda, antena y cobertura; la solución fue migrar a RadioLib 7.7.1 y temporizar con millis().
+
+### CubeCell-LoRaWAN-Node-v1.3 — Downlinks de varios bytes truncados a uno
+
+El firmware tomaba el retorno de sendReceive() como longitud del downlink, pero esa función devuelve la ventana RX (uno o dos), no el tamaño. Los mensajes de texto se imprimían cortados. En v1.3b la longitud se inicializa con sizeof y se pasa por puntero, de modo que el payload completo llega al puerto serie.
+
+### CubeCell-LoRaWAN-Node-v1.3 — DevNonce nuevo en cada reinicio
+
+No hay persistencia en NVM: cada arranque genera un DevNonce distinto y los servidores LoRaWAN 1.0.4 o superiores rechazan el join con el error -1116. La documentación propone reiniciar el dispositivo en el network server, añadir NVM o trabajar en ABP; el firmware de la versión no lo resuelve.
+
+## Preguntas típicas
+
+**¿Por dónde empiezo?**
+
+Por CubeCell-LoRaWAN-Demo para validar placa y gateway; después pasá al nodo v1.3.
+
+**¿Qué gateway se usó?**
+
+Un Milesight UG56. Otro gateway compatible con LoRaWAN también debería servir.
+
+**¿Por qué v1.1 usa RadioLib?**
+
+Para controlar el radio y el ciclo de join sin depender del stack del fabricante.
+
+**¿El puente v1.3 es productivo?**
+
+Es una herramienta de integración. Para producción hay que agregar buffering y reconexión.
+
+**¿Se incluyen las claves?**
+
+No. Las claves reales fueron removidas; hay que generar las propias en el Network Server.
+
+<!-- /ficha -->
+
 ## Documentación
 
 - [`docs/datasheet.md`](docs/datasheet.md) — instalación, operación y límites.
@@ -48,11 +102,11 @@ Las credenciales OTAA/ABP no se incluyen. El FQBN depende de la placa Heltec ins
 - [`docs/REFERENCES.md`](docs/REFERENCES.md) — estándares, librerías y fuentes.
 - [`docs/index.html`](docs/index.html) — página del proyecto (GitHub Pages).
 
-## Alcance y honestidad
+## El proyecto en detalle
 
 <div align="center">
 
-## CubeCell LoRaWAN Bridge v1.3
+### CubeCell LoRaWAN Bridge v1.3
 
 **Un puente bidireccional entre un puerto serie y la red LoRaWAN.**
 Escribes HEX por el puerto serie y sale al aire. El gateway responde y el comando aparece en tu terminal.
