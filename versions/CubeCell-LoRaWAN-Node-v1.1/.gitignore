@@ -1,9 +1,0 @@
-PLAN.md
-AUDIT_REPORT.md
-*.cyacd
-*.elf
-*.hex
-*.o
-*.d
-build/
-.cache/
